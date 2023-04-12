@@ -8,47 +8,68 @@ module MasterMindBoard
     4.times.map { rand(1..4) }
   end
 
-  def compare_code(code, guess)
+  def cracked?(code, guess)
     indicators = []
+    return true if code == guess
+
     guess.each_with_index do |number, index|
-      if number == code[index]
-        indicators.push('red')
-      elsif code.include?(number)
-        indicators.push('white')
-      end
+      indicators = number_check(indicators, code, number, index)
     end
-    indicators.shuffle
+    puts "#{guess.join(' ')} | #{indicators.shuffle.join(' ')}"
+    false
+  end
+
+  def show_guess(guess)
+    puts guess.size.positive? ? "Your selections are #{guess}, type 0 to delete" : 'You have no selections'
+  end
+
+  def show_scores(player_score, computer_score)
+    puts "Player score: #{player_score} | Computer score: #{computer_score}"
+  end
+
+  private
+
+  def number_check(indicators, code, number, index)
+    if number == code[index]
+      indicators.push('red')
+    elsif code.include?(number)
+      indicators.push('white')
+    end
+    indicators
   end
 end
 
 # Game class
 class Game
   include MasterMindBoard
-
+  LIMIT_ROUNDS = 12
   attr_accessor :code, :guess
 
   def initialize
     @over = false
-    @guess = []
+    @round = 0
+    @player = Player.new('breaker')
+    @computer = Player.new('maker')
   end
 
   def play
     @code = generate_code
     puts "Code is #{@code}"
-    make_guesses until @over == true
+    start_round until @over == true
   end
 
   private
 
-  def make_guesses
+  def start_round
+    @round += 1
+    @guess = []
     while guess.size < 4
-      puts guess.size.positive? ? "Your selections are #{@guess}, type 0 to delete" : 'You have no selections'
+      show_guess(@guess)
       number = select_number
       number.zero? ? remove_guess : add_guess(number)
     end
-    comparison = compare_code(@code, @guess)
-    puts "#{guess.join(' ')} | #{comparison.join(' ')}"
-    @guess = []
+    cracked?(@code, @guess) ? end_game : @computer.add_score
+    show_scores(@player.score, @computer.score)
   end
 
   def select_number
@@ -62,7 +83,8 @@ class Game
     if (0..4).include?(number)
       true
     else
-      puts 'Please elect a number from 0 to 4'
+      puts 'Please select a number from 0 to 4'
+      false
     end
   end
 
@@ -73,19 +95,25 @@ class Game
   def add_guess(number)
     @guess.push(number)
   end
+
+  def end_game
+    @over = true
+    score_to_add = LIMIT_ROUNDS - @round
+    @player.add_score(score_to_add)
+  end
 end
 
 # Player class
 class Player
-  def initialize
-    @role = 'breaker'
-  end
-end
+  attr_accessor :role, :score
 
-# Computer class
-class Computer
-  def initialize
-    @role = 'maker'
+  def initialize(role)
+    @role = role
+    @score = 0
+  end
+
+  def add_score(score = 1)
+    @score += score
   end
 end
 
